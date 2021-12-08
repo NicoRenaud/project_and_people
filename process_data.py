@@ -111,5 +111,5 @@ if __name__ == "__main__":
     df = extract_data("exactdump_6month.xlsx")
     # g = create_graph(df)
     # nx.draw(g)
-    # plot_engineer_sunburst(df, 'Yidat Dzigan')
+    # plot_engineer_sunburst(df, 'Nicolas Renaud')
     plot_project_sunburst(df, 'EUCP H2020 - EUropean Climate Prediction system')
