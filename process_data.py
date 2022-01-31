@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import networkx as nx
+
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -94,7 +95,118 @@ def plot_engineer_sunburst_raw(df, engineer_name):
     fig.show()
     return newdf
 
+def plot_productivity_sunburst_raw(df):
 
+    sec = get_sections('engineer_sections.dat')
+    employee = get_unique_names(df, 'Employee')
+    employee = [n  for n in employee if n == n]
+    project = []
+    section = []
+    name = []
+    prod = []
+
+    for e in employee:
+        section += [sec[e]]
+        name += [e]
+        project += ['non billable hours']
+        edf = df[df['Employee']==e].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+        core_hours = 0
+        support_hours = 0
+
+        try:
+            core_hours += edf['0001 - Core Process'].sum()
+        except:
+           pass
+
+        try:
+            core_hours += edf['0005 - Core Hours'].sum()
+        except:
+            pass
+
+
+        try:
+            support_hours += edf['0003 - Support Process'].sum()
+        except:
+            pass
+
+        try:
+            support_hours -= edf['0003 - Support Process', 'Holiday']
+        except:
+            pass
+
+        try:
+            support_hours -= edf['0003 - Support Process', 'Public Holidays']
+        except:
+            pass
+
+        total_hours = core_hours + support_hours
+        prod += [support_hours/total_hours]
+
+
+    newdf = pd.DataFrame(
+        dict(project=project, section=section, name=name, prod=prod)
+            )
+
+    fig = px.sunburst(newdf, path=['project', 'section', 'name'], values='prod')
+    fig.show()
+
+def plot_billable_hours_engineer(df, engineer_name):
+
+
+    bill = []
+    name = []
+    hour_type = []
+    hours = []
+    total_billable = 0
+    total_nonbillable = 0
+    edf = df[df['Employee']==engineer_name].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+
+
+    try:
+        core_proc = edf['0001 - Core Process']
+        for k in core_proc.keys():
+
+            name += [engineer_name]
+            bill += ['billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_billable += core_proc[k]
+    except:
+        pass
+
+    try:
+        core_proc = edf['0005 - Core Hours']
+        for k in core_proc.keys():
+
+            name += [engineer_name]
+            bill += ['billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_billable += core_proc[k]
+    except:
+        pass
+
+    try:
+        core_proc = edf['0003 - Support Process']
+        for k in core_proc.keys():
+            if k not in ['Holiday', 'Public Holidays']:
+                name += [engineer_name]
+                bill += ['non billable']
+                hour_type += [k]
+                hours += [core_proc[k]]
+                total_nonbillable += core_proc[k]
+
+    except:
+        pass
+
+    prod = total_nonbillable / (total_billable + total_nonbillable)
+    name = [n + '\n' + str(prod)[:4] for n in name]
+    newdf = pd.DataFrame(
+    dict(name=name, bill=bill, hour_type=hour_type, hours=hours)
+        )
+
+    fig = px.sunburst(newdf, path=['name', 'bill', 'hour_type'], values='hours')
+    fig.show()
 
 def plot_project_sunburst_raw(df, project_name):
 
