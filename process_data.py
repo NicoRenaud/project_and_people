@@ -11,6 +11,8 @@ def get_unique_names(df, colname):
     names.pop(names=='NaN')
     names.pop(names=='nan')
     names.pop(names==float('NaN'))
+    names = [n  for n in names if n == n] # remove nans
+    names.sort()
     return  names
 
 
@@ -95,7 +97,7 @@ def plot_engineer_sunburst_raw(df, engineer_name):
     fig.show()
     return newdf
 
-def plot_productivity_sunburst_raw(df):
+def plot_productivity_sunburst_raw(df, mode='percent'):
 
     sec = get_sections('engineer_sections.dat')
     employee = get_unique_names(df, 'Employee')
@@ -140,8 +142,11 @@ def plot_productivity_sunburst_raw(df):
             pass
 
         total_hours = core_hours + support_hours
-        prod += [support_hours/total_hours]
-
+        if mode == 'percent':
+            prod += [support_hours/total_hours]
+        elif mode == 'hours':
+            prod += [support_hours]
+        # prod += [support_hours/1536]
 
     newdf = pd.DataFrame(
         dict(project=project, section=section, name=name, prod=prod)
@@ -292,10 +297,10 @@ def plot_sankey_section(odf):
     projects = list(df.keys())
 
     eng_sec_name = ["LS", "SSH", "NS", "ES"]
-    proj_sec_name = ["LS", "SSH", "NS", "ES", "Other"]
+    proj_sec_name = ["LS", "SSH", "NS", "ES", "Other", "Ambition 2"]
 
     hours_data = df.to_numpy()
-    data = np.zeros((4,5))
+    data = np.zeros((4,6))
 
     for ie, e in enumerate(employees):
         for ip, p in enumerate(projects):
@@ -315,15 +320,15 @@ def plot_sankey_section(odf):
 
 
     data = list(data.flatten())
-    source = [0]*5 + [1]*5 + [2]*5 + [3]*5 + [4]*5
-    target = [4,5,6,7,8]*5
+    source = [0]*6 + [1]*6 + [2]*6 + [3]*6 + [4]*6
+    target = [4,5,6,7,8,9]*5
 
     fig = go.Figure(data=[go.Sankey(
         node = dict(
         pad = 15,
         thickness = 20,
         line = dict(color = "black", width = 0.5),
-        label = ["Life", "SSH", "Nat", "Env", "Life", "SSH", "Nat", "Env", "Other"]
+        label = ["Life", "SSH", "Nat", "Env", "Life", "SSH", "Nat", "Env", "Other", "Ambition 2"]
         ),
         link = dict(
         source = source,
