@@ -165,7 +165,8 @@ def update_cummulative_project_timeline(project_name):
     employee = []
     hours = []
     cum_hours = dict()
-    cum_hours['total'] = 0
+    total_hours = dict()
+
     for (w,e), h in edf.items():
         if e not in cum_hours.keys():
             cum_hours[e] = h
@@ -176,10 +177,33 @@ def update_cummulative_project_timeline(project_name):
         employee += [e]
         hours += [cum_hours[e]]
 
+
+        if int(w) not in total_hours:
+            total_hours[int(w)] = h
+        else:
+            total_hours[int(w)] += h
+
+    sorted_total_hours, sorted_total_week = [], []
+    for w,h in total_hours.items():
+        sorted_total_week += [w]
+        sorted_total_hours += [h]
+
+    idx = np.argsort(sorted_total_week)
+    sorted_total_week = list(np.array(sorted_total_week)[idx])
+    sorted_total_hours = list(np.cumsum(np.array(sorted_total_hours)[idx]))
+
+    week += sorted_total_week
+    hours += sorted_total_hours
+    employee += ['Total']*len(sorted_total_week)
+
+
     idx = np.argsort(week)
     week = list(np.array(week)[idx])
     employee = list(np.array(employee)[idx])
     hours = list(np.array(hours)[idx])
+
+    
+
     newdf = pd.DataFrame(
     dict(employee=employee, week=week, hours=hours)
         )
