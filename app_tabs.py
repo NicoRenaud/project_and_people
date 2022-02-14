@@ -160,7 +160,7 @@ def update_project_timeline(project_name):
     Output('cummulative_timeline_project','figure'),
     Input('proj_name_dropdown', 'value'))
 def update_cummulative_project_timeline(project_name):
-    edf = raw_df[raw_df['Project']==project_name].groupby([raw_df['Date'].dt.strftime('%W'),'Employee']).sum()['Quantity']
+    edf = raw_df[raw_df['Project']==project_name].groupby([raw_df['Date'].dt.strftime('%Y%W'),'Employee']).sum()['Quantity']
     week = []
     employee = []
     hours = []
@@ -202,12 +202,21 @@ def update_cummulative_project_timeline(project_name):
     employee = list(np.array(employee)[idx])
     hours = list(np.array(hours)[idx])
 
+    val_week = np.sort(list(set(week)))
+    text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
     
 
     newdf = pd.DataFrame(
     dict(employee=employee, week=week, hours=hours)
         )
-    fig = px.line(newdf, x='week', y='hours', color='employee',markers=True)
+    fig = px.line(newdf, x='week', y='hours', color='employee', markers=True)
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week
+        )
+    )
     return fig
 
 @app.callback(
