@@ -131,15 +131,15 @@ def plot_productivity_sunburst_raw(df, mode='percent'):
         except:
             pass
 
-        try:
-            support_hours -= edf['0003 - Support Process', 'Holiday']
-        except:
-            pass
+        # try:
+        #     support_hours -= edf['0003 - Support Process', 'Holiday']
+        # except:
+        #     pass
 
-        try:
-            support_hours -= edf['0003 - Support Process', 'Public Holidays']
-        except:
-            pass
+        # try:
+        #     support_hours -= edf['0003 - Support Process', 'Public Holidays']
+        # except:
+        #     pass
 
         total_hours = core_hours + support_hours
         if mode == 'percent':
@@ -194,12 +194,12 @@ def plot_billable_hours_engineer(df, engineer_name):
     try:
         core_proc = edf['0003 - Support Process']
         for k in core_proc.keys():
-            if k not in ['Holiday', 'Public Holidays']:
-                name += [engineer_name]
-                bill += ['non billable']
-                hour_type += [k]
-                hours += [core_proc[k]]
-                total_nonbillable += core_proc[k]
+            # if k not in ['Holiday', 'Public Holidays']:
+            name += [engineer_name]
+            bill += ['non billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_nonbillable += core_proc[k]
 
     except:
         pass

@@ -28,21 +28,24 @@ app_color = {"graph_bg": "#082255", "graph_line": "#007ACE"}
 app.layout = html.Div([
 
     # header
-    html.Div(
-        [
-            html.Div(
-                [
-                    html.H1("eScience Data Explorer", className="app__header__title"),
-                ],
-                className="app__header__desc",
-            ),
-        ],
-        className="app__header",
-    ),
+    # html.Div(
+    #     [
+    #         html.Div(
+    #             [
+    #                 html.H1("eScience Data Explorer", className="app__header__title"),
+    #             ],
+    #             className="app__header__desc",
+    #         ),
+    #     ],
+    #     className="app__header",
+    # ),
     dcc.Tabs([
         dcc.Tab(label='Engineer', children=[
             dcc.Dropdown(eng_name_list, eng_name_list[0], id='eng_name_dropdown', style={'width': '50%'}),
-            html.Div([dcc.Graph(id='sunburst_engineer'), dcc.Graph(id='timeline_engineer')]),
+            html.Div([
+                dcc.Graph(id='sunburst_engineer', style={'display': 'inline-block'}),
+                dcc.Graph(id='sunburst_engineer_prod', style={'display': 'inline-block'}), 
+                dcc.Graph(id='timeline_engineer')]),
         ]),
         dcc.Tab(label='Project', children=[
             dcc.Dropdown(proj_name_list, proj_name_list[0], id='proj_name_dropdown', style={'width': '50%'}),
@@ -83,6 +86,7 @@ def update_sunburst_engineer(engineer_name):
         )
 
     fig = px.sunburst(newdf, path=['name', 'section', 'project','hour_type'], values='hours')
+    fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
     return fig
 
 
@@ -257,15 +261,15 @@ def plot_productivity_sunburst_raw(mode):
         except:
             pass
 
-        try:
-            support_hours -= edf['0003 - Support Process', 'Holiday']
-        except:
-            pass
+        # try:
+        #     support_hours -= edf['0003 - Support Process', 'Holiday']
+        # except:
+        #     pass
 
-        try:
-            support_hours -= edf['0003 - Support Process', 'Public Holidays']
-        except:
-            pass
+        # try:
+        #     support_hours -= edf['0003 - Support Process', 'Public Holidays']
+        # except:
+        #     pass
 
         total_hours = core_hours + support_hours
         if mode == 'percent':
@@ -279,6 +283,70 @@ def plot_productivity_sunburst_raw(mode):
             )
 
     fig = px.sunburst(newdf, path=['project', 'section', 'name'], values='prod')
+    return fig
+
+
+
+@app.callback(
+    Output('sunburst_engineer_prod','figure'),
+    Input('eng_name_dropdown', 'value'))
+def update_sunburst_engineer_prod(engineer_name):
+
+
+    bill = []
+    name = []
+    hour_type = []
+    hours = []
+    total_billable = 0
+    total_nonbillable = 0
+    edf = raw_df[raw_df['Employee']==engineer_name].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+
+
+    try:
+        core_proc = edf['0001 - Core Process']
+        for k in core_proc.keys():
+
+            name += [engineer_name]
+            bill += ['billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_billable += core_proc[k]
+    except:
+        pass
+
+    try:
+        core_proc = edf['0005 - Core Hours']
+        for k in core_proc.keys():
+
+            name += [engineer_name]
+            bill += ['billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_billable += core_proc[k]
+    except:
+        pass
+
+    try:
+        core_proc = edf['0003 - Support Process']
+        for k in core_proc.keys():
+            # if k not in ['Holiday', 'Public Holidays']:
+            name += [engineer_name]
+            bill += ['non billable']
+            hour_type += [k]
+            hours += [core_proc[k]]
+            total_nonbillable += core_proc[k]
+
+    except:
+        pass
+
+    prod = total_nonbillable / (total_billable + total_nonbillable)
+    name = [n + '\n' + str(prod)[:4] for n in name]
+    newdf = pd.DataFrame(
+    dict(name=name, bill=bill, hour_type=hour_type, hours=hours)
+        )
+
+    fig = px.sunburst(newdf, path=['name', 'bill', 'hour_type'], values='hours')
+    fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
     return fig
 
 def get_sections(filename):
