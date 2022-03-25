@@ -49,12 +49,42 @@ app.layout = html.Div([
             dcc.Dropdown(proj_name_list, proj_name_list[0], id='proj_name_dropdown', style={'width': '50%'}),
             html.Div([dcc.Graph(id='sunburst_project'), dcc.Graph(id='timeline_project'), dcc.Graph(id='cummulative_timeline_project')]),
         ]),
+
         dcc.Tab(label='Section', children=[
-            dcc.Dropdown(manager_name_list+ ['Total'], manager_name_list[0], id='manager_name_dropdown', style={'width': '50%'}),
-            html.Div([
-                dcc.Graph(id='sunburst_section', style={'display': 'inline-block'}),
-                dcc.Checklist(['Projection'], [], id='select_data', inline=True),
-                dcc.Graph(id='timeline_productivity')]),
+
+            html.Div
+            (
+                [
+                    dcc.Dropdown(manager_name_list+ ['Total'], manager_name_list[0], 
+                                 id='manager_name_dropdown', style={'width': '100%', 
+                                                                     'display': 'inline-block',
+                                                                     'verticalAlign':'top',
+                                                                     "justify-content":'center'}),
+ 
+                    dcc.Graph(id='sunburst_section', style={'width': '100%', 'display': 'inline-block'}),
+                ],
+            ),
+            html.Div
+            (
+                [
+                    dcc.Checklist(['Projection'], [], id='select_data', inline=True)
+                ],
+                style={
+                    "display": "inline-block",
+                    "width": "100%",
+                    "margin-left": "0px",
+                    'display':'flex',
+                    'margin-right':'20px',
+                    'vertical-align':'bottom',
+                    "justify-content":'center'
+                }
+            ),
+            html.Div
+            (
+                [
+                    dcc.Graph(id='timeline_productivity')
+                ]
+            ),
         ]),
     ])
 ])
