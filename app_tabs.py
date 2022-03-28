@@ -6,6 +6,7 @@ import dash
 from dash.dependencies import Input, Output, State
 from dash import dcc, html, dash_table
 import plotly.express as px
+import plotly.graph_objects as go
 from process_data import get_unique_names
 from process_data import plot_engineer_sunburst_raw
 import numpy as np
@@ -39,10 +40,17 @@ app.layout = html.Div([
 
     dcc.Tabs([
         dcc.Tab(label='Engineer', children=[
-            dcc.Dropdown(eng_name_list, eng_name_list[0], id='eng_name_dropdown', style={'width': '50%'}),
+            # dcc.Dropdown(manager_name_list + ['All Managers'], 'All Managers', 
+            #             id='manager_filter_name_dropdown', style={'width': '50%'},
+            #             placeholder="Select a manager"),
+            dcc.Dropdown(eng_name_list, eng_name_list[0], 
+                         id='eng_name_dropdown', 
+                         style={'width': '50%'},
+                         searchable=True,
+                         placeholder="Select an engineer"),
             html.Div([
                 dcc.Graph(id='sunburst_engineer', style={'display': 'inline-block'}),
-                dcc.Graph(id='sunburst_engineer_prod', style={'display': 'inline-block'}), 
+                dcc.Graph(id='timeline_engineer_prod', style={'display': 'inline-block'}), 
                 dcc.Graph(id='timeline_engineer')]),
         ]),
         dcc.Tab(label='Project', children=[
@@ -91,6 +99,12 @@ app.layout = html.Div([
 
 
 
+# @app.callback(
+#     Output('eng_name_dropdown','values'),
+#     Input('manager_filter_name_dropdown', 'value'))
+# def update_dropdown_engineer(manager_name):
+#     mdf = raw_df[raw_df['Manager']==manager_name]
+#     return get_unique_names(mdf,'Employee')
 
 
 @app.callback(
@@ -258,66 +272,193 @@ def update_cummulative_project_timeline(project_name):
     return fig
 
 
+# @app.callback(
+#     Output('sunburst_engineer_prod','figure'),
+#     Input('eng_name_dropdown', 'value'))
+# def update_sunburst_engineer_prod(engineer_name):
+
+
+#     bill = []
+#     name = []
+#     hour_type = []
+#     hours = []
+#     total_billable = 0
+#     total_nonbillable = 0
+#     edf = raw_df[raw_df['Employee']==engineer_name].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+
+
+#     try:
+#         core_proc = edf['0001 - Core Process']
+#         for k in core_proc.keys():
+
+#             name += [engineer_name]
+#             bill += ['billable']
+#             hour_type += [k]
+#             hours += [core_proc[k]]
+#             total_billable += core_proc[k]
+#     except:
+#         pass
+
+#     try:
+#         core_proc = edf['0005 - Core Hours']
+#         for k in core_proc.keys():
+
+#             name += [engineer_name]
+#             bill += ['billable']
+#             hour_type += [k]
+#             hours += [core_proc[k]]
+#             total_billable += core_proc[k]
+#     except:
+#         pass
+
+#     try:
+#         core_proc = edf['0003 - Support Process']
+#         for k in core_proc.keys():
+#             # if k not in ['Holiday', 'Public Holidays']:
+#             name += [engineer_name]
+#             bill += ['non billable']
+#             hour_type += [k]
+#             hours += [core_proc[k]]
+#             total_nonbillable += core_proc[k]
+
+#     except:
+#         pass
+
+#     prod = total_nonbillable / (total_billable + total_nonbillable)
+#     name = [n + '\n' + str(prod)[:4] for n in name]
+#     newdf = pd.DataFrame(
+#     dict(name=name, bill=bill, hour_type=hour_type, hours=hours)
+#         )
+
+#     fig = px.sunburst(newdf, path=['name', 'bill', 'hour_type'], values='hours')
+#     fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
+#     return fig
+
+
+
 @app.callback(
-    Output('sunburst_engineer_prod','figure'),
+    Output('timeline_engineer_prod','figure'),
     Input('eng_name_dropdown', 'value'))
-def update_sunburst_engineer_prod(engineer_name):
+def update_timeline_engineer_prod(engineer_name):
+    edf = raw_df[raw_df['Employee']==engineer_name].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
 
 
-    bill = []
-    name = []
+
+    week = []
     hour_type = []
     hours = []
-    total_billable = 0
-    total_nonbillable = 0
-    edf = raw_df[raw_df['Employee']==engineer_name].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+    cum_hours = dict()
+    total_hours = dict()
+    core_hours = dict()
+
+    for (w,ht), h in edf.items():
+
+        if ht not in cum_hours.keys():
+            cum_hours[ht] = h
+        else:
+            cum_hours[ht] += h
+
+        week += [int(w)]
+        hour_type += [ht]
+        hours += [cum_hours[ht]]
+
+        if 'Core' in ht:
+            if int(w) not in core_hours:
+                core_hours[int(w)] = h
+            else:
+                core_hours[int(w)] += h            
+
+        if int(w) not in total_hours:
+            total_hours[int(w)] = h
+        else:
+            total_hours[int(w)] += h
+
+    for w, _ in total_hours.items():
+        if w not in core_hours.keys():
+            core_hours[w] = 0
+            
 
 
-    try:
-        core_proc = edf['0001 - Core Process']
-        for k in core_proc.keys():
+    sorted_total_hours, sorted_total_week = [], []
+    for w,h in total_hours.items():
+        sorted_total_week += [w]
+        sorted_total_hours += [h]
 
-            name += [engineer_name]
-            bill += ['billable']
-            hour_type += [k]
-            hours += [core_proc[k]]
-            total_billable += core_proc[k]
-    except:
-        pass
+    sorted_core_hours, sorted_core_week = [], []
+    for w,h in core_hours.items():
+        sorted_core_week += [w]
+        sorted_core_hours += [h]
 
-    try:
-        core_proc = edf['0005 - Core Hours']
-        for k in core_proc.keys():
 
-            name += [engineer_name]
-            bill += ['billable']
-            hour_type += [k]
-            hours += [core_proc[k]]
-            total_billable += core_proc[k]
-    except:
-        pass
+    idx = np.argsort(sorted_total_week)
+    sorted_total_week = list(np.array(sorted_total_week)[idx])
+    sorted_total_hours = list(np.cumsum(np.array(sorted_total_hours)[idx]))
 
-    try:
-        core_proc = edf['0003 - Support Process']
-        for k in core_proc.keys():
-            # if k not in ['Holiday', 'Public Holidays']:
-            name += [engineer_name]
-            bill += ['non billable']
-            hour_type += [k]
-            hours += [core_proc[k]]
-            total_nonbillable += core_proc[k]
+    idx = np.argsort(sorted_core_week)
+    sorted_core_week = list(np.array(sorted_core_week)[idx])
+    sorted_core_hours = list(np.cumsum(np.array(sorted_core_hours)[idx]))
 
-    except:
-        pass
+    sorted_productivity = [(c/t)*100 for c,t in zip(sorted_core_hours,sorted_total_hours)]
 
-    prod = total_nonbillable / (total_billable + total_nonbillable)
-    name = [n + '\n' + str(prod)[:4] for n in name]
+    week = sorted_total_week + sorted_core_week + sorted_core_week
+    hours = sorted_total_hours + sorted_core_hours + sorted_productivity
+    hour_type = ['Total']*len(sorted_total_week) + ['Core']*len(sorted_core_week) + ['Prod']*len(sorted_core_week)
+
+    week = sorted_core_week
+    hours =  sorted_productivity
+    hour_type = ['Prod']*len(sorted_core_week)
+
+    idx = np.argsort(week)
+    week = list(np.array(week)[idx])
+    hour_type = list(np.array(hour_type)[idx])
+    hours = list(np.array(hours)[idx])
+
+
+    val_week = np.sort(list(set(week)))
+    text_week = [str(w)[:4] for w in val_week]
+
     newdf = pd.DataFrame(
-    dict(name=name, bill=bill, hour_type=hour_type, hours=hours)
-        )
+    dict(hour_type=hour_type, week=week, productivity=hours))
 
-    fig = px.sunburst(newdf, path=['name', 'bill', 'hour_type'], values='hours')
-    fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
+    fig = px.line(newdf, x='week', y='productivity', markers=True)
+
+
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week,
+        showline=True,
+        showgrid=True,
+        showticklabels=True,
+        linecolor='rgb(204, 204, 204)',
+        linewidth=2,
+        ticks='outside',
+        tickfont=dict(
+            family='Arial',
+            size=12,
+            color='rgb(82, 82, 82)',
+        ),
+    ),
+
+    yaxis=dict(
+        showgrid=True,
+        zeroline=True,
+        showline=True,
+        showticklabels=True,
+    ),
+    autosize=False,
+    margin=dict(
+        autoexpand=False,
+        l=100,
+        r=20,
+        t=110,
+    ),
+    showlegend=False,
+    plot_bgcolor='white'
+)
+
+    fig.update_yaxes(range=[0, 102])
     return fig
 
 
