@@ -8,9 +8,6 @@ import plotly.graph_objects as go
 def get_unique_names(df, colname):
     names = list(df[colname])
     names = list(set(names))
-    # names.pop(names=='NaN')
-    # names.pop(names=='nan')
-    # names.pop(names==float('NaN'))
     names = [n  for n in names if n == n]
     names.sort()
     return  names

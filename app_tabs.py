@@ -11,7 +11,7 @@ from process_data import get_unique_names
 from process_data import plot_engineer_sunburst_raw
 import numpy as np
 import pandas as pd
-
+import json
 
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -28,7 +28,8 @@ manager_name_list = get_unique_names(raw_df, 'Manager')
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-
+test_png = 'NleSc.png'
+test_base64 = base64.b64encode(open(test_png, 'rb').read()).decode('ascii')
 
 app.title = "eScience Data Xplorer"
 
@@ -37,6 +38,40 @@ server = app.server
 app_color = {"graph_bg": "#082255", "graph_line": "#007ACE"}
 
 app.layout = html.Div([
+    html.Div([
+
+        html.Div([
+            html.Img(src='data:image/png;base64,{}'.format(test_base64),
+                    style={'width':'20%',}
+                    ),
+                
+        ], style={'width':'40%', 'display': 'inline-block'}),
+        html.Div([
+            dcc.Upload(
+                id='upload-data',
+                children=html.Div([
+                    'Drag and Drop or ',
+                    html.A('Select Files')
+                ]),
+                style={
+                    'display': 'inline-block',
+                    'width': '100%',
+                    'height': '40px',
+                    'lineHeight': '60px',
+                    'borderWidth': '1px',
+                    'borderStyle': 'dashed',
+                    'borderRadius': '5px',
+                    'textAlign': 'center',
+                    'margin': '10px'
+                },
+                # Allow multiple files to be uploaded
+                multiple=False
+            ),
+            html.Div(id='output'),
+            # dcc.Store(id='store_raw_df'),
+        ], style={'width':'49%','display': 'inline-block'}),
+        
+    ], style={'display': 'flex'}),
 
     dcc.Tabs([
         dcc.Tab(label='Engineer', children=[
@@ -105,6 +140,37 @@ app.layout = html.Div([
 # def update_dropdown_engineer(manager_name):
 #     mdf = raw_df[raw_df['Manager']==manager_name]
 #     return get_unique_names(mdf,'Employee')
+
+
+@app.callback(Output('eng_name_dropdown', 'options'), 
+              Input('upload-data', 'contents'),
+              State('upload-data', 'filename'),
+              State('upload-data', 'last_modified'))
+def clean_data(contents, filename, dates):
+
+    if filename is not None:
+        global raw_df
+        global eng_name_list
+        global proj_name_list
+        global manager_name_list
+
+        raw_df = pd.read_excel(filename)
+
+        eng_name_list = get_unique_names(raw_df, 'Employee')
+        proj_name_list = get_unique_names(raw_df, 'Project')
+        manager_name_list = get_unique_names(raw_df, 'Manager') 
+	
+    return eng_name_list
+
+# @app.callback(
+#     Output('eng_name_dropdown', 'options'),
+#     Input('store_raw_df', 'data')
+# )
+# def update_date_dropdown(raw_df):
+#     if raw_df is not None:
+#         df = pd.read_json(raw_df)
+#         eng_name_list = get_unique_names(raw_df, 'Employee')
+#         return [{'label': i, 'value': i} for i in eng_name_list]
 
 
 @app.callback(
@@ -619,7 +685,10 @@ def get_engineer_sections_automatic(raw_df, names):
 def get_project_sections_automatic(raw_df, names):
     d = dict()
     for n in names:
-        d[n] = raw_df[raw_df['Project']==n]['Project manager'].unique()[-1]
+        try:
+            d[n] = raw_df[raw_df['Project']==n]['Project manager'].unique()[-1]
+        except:
+            d[n] = 'Unkown'
     return d
 
 
