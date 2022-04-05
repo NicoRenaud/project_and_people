@@ -8,15 +8,15 @@ from dash import dcc, html, dash_table
 import plotly.express as px
 import plotly.graph_objects as go
 from process_data import get_unique_names
-from process_data import plot_engineer_sunburst_raw
+
 import numpy as np
 import pandas as pd
-import json
+import webbrowser
+from threading import Timer
 
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-fname = "./data/hours2021.xlsx"
 fname = "./data/hoursJanFeb2022.xlsx"
 raw_df = pd.read_excel(fname)
 
@@ -717,4 +717,12 @@ def get_project_sections_automatic(raw_df, names):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    
+
+    def open_browser():
+        webbrowser.open_new("http://localhost:{}".format(port))
+
+    port = 8050
+    Timer(1, open_browser).start()
+    app.run_server(debug=True, port=port)
+    # app.run_server(debug=False)
