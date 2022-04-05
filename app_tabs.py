@@ -16,8 +16,8 @@ import json
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-fname = "hours2021.xlsx"
-fname = "hoursJanFeb2022.xlsx"
+fname = "./data/hours2021.xlsx"
+fname = "./data/hoursJanFeb2022.xlsx"
 raw_df = pd.read_excel(fname)
 
 eng_name_list = get_unique_names(raw_df, 'Employee')
@@ -28,7 +28,7 @@ manager_name_list = get_unique_names(raw_df, 'Manager')
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
-test_png = 'NleSc.png'
+test_png = './assets/NleSc.png'
 test_base64 = base64.b64encode(open(test_png, 'rb').read()).decode('ascii')
 
 app.title = "eScience Data Xplorer"
