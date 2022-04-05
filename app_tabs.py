@@ -67,14 +67,14 @@ app.layout = html.Div([
                 # Allow multiple files to be uploaded
                 multiple=False
             ),
-            html.Div(id='output'),
+            html.Div('Hello', id='output'),
             # dcc.Store(id='store_raw_df'),
         ], style={'width':'49%','display': 'inline-block'}),
         
     ], style={'display': 'flex'}),
 
     dcc.Tabs([
-        dcc.Tab(label='Engineer', children=[
+        dcc.Tab(label='Employee', children=[
             # dcc.Dropdown(manager_name_list + ['All Managers'], 'All Managers', 
             #             id='manager_filter_name_dropdown', style={'width': '50%'},
             #             placeholder="Select a manager"),
@@ -93,16 +93,13 @@ app.layout = html.Div([
             html.Div([dcc.Graph(id='sunburst_project'), dcc.Graph(id='timeline_project'), dcc.Graph(id='cummulative_timeline_project')]),
         ]),
 
-        dcc.Tab(label='Section', children=[
+        dcc.Tab(label='Line Manager', children=[
 
             html.Div
             (
                 [
-                    dcc.Dropdown(manager_name_list+ ['Total'], manager_name_list[0], 
-                                 id='manager_name_dropdown', style={'width': '100%', 
-                                                                     'display': 'inline-block',
-                                                                     'verticalAlign':'top',
-                                                                     "justify-content":'center'}),
+                    dcc.Dropdown(manager_name_list + ['Total', 'Total-RSE'], manager_name_list[0], 
+                                 id='manager_name_dropdown', style={'width': '50%'}),
  
                     dcc.Graph(id='sunburst_section', style={'width': '100%', 'display': 'inline-block'}),
                 ],
@@ -142,7 +139,10 @@ app.layout = html.Div([
 #     return get_unique_names(mdf,'Employee')
 
 
-@app.callback(Output('eng_name_dropdown', 'options'), 
+@app.callback(Output('eng_name_dropdown', 'options'),
+              Output('proj_name_dropdown', 'options'),
+              Output('manager_name_dropdown', 'options'),
+              Output('output', 'children'),
               Input('upload-data', 'contents'),
               State('upload-data', 'filename'),
               State('upload-data', 'last_modified'))
@@ -160,7 +160,7 @@ def clean_data(contents, filename, dates):
         proj_name_list = get_unique_names(raw_df, 'Project')
         manager_name_list = get_unique_names(raw_df, 'Manager') 
 	
-    return eng_name_list
+    return eng_name_list, proj_name_list, manager_name_list + ['Total', 'Total-RSE'], filename
 
 # @app.callback(
 #     Output('eng_name_dropdown', 'options'),
@@ -175,11 +175,12 @@ def clean_data(contents, filename, dates):
 
 @app.callback(
     Output('sunburst_engineer','figure'),
-    Input('eng_name_dropdown', 'value'))
-def update_sunburst_engineer(engineer_name):
+    Input('eng_name_dropdown', 'value'),
+    Input('upload-data', 'contents'))
+def update_sunburst_engineer(engineer_name, contents):
 
     # sec = get_sections('project_sections.dat')
-    sec = get_project_sections_automatic(raw_df,proj_name_list)
+    sec = get_project_sections_automatic(raw_df, proj_name_list)
     edf = raw_df[raw_df['Employee']==engineer_name].groupby(['Project','Hour or cost type']).sum()['Quantity']
     name = []
     section = []
@@ -189,7 +190,10 @@ def update_sunburst_engineer(engineer_name):
 
     for (p,t), hour in edf.items():
         name += [engineer_name]
-        section += [sec[p]]
+        if p in sec:
+            section += [sec[p]]
+        else:
+            section += ["Unkown"]
         project += [p]
         hour_type += [t]
         hours += [hour]
@@ -234,7 +238,7 @@ def update_sunburst_project(project_name):
     Output('timeline_engineer','figure'),
     Input('eng_name_dropdown', 'value'))
 def update_engineer_timeline(engineer_name):
-    edf = raw_df[raw_df['Employee']==engineer_name].groupby([raw_df['Date'].dt.strftime('%W'),'Project']).sum()['Quantity']
+    edf = raw_df[raw_df['Employee']==engineer_name].groupby([raw_df['Date'].dt.strftime('%Y%W'),'Project']).sum()['Quantity']
     week = []
     project = []
     hours = []
@@ -246,17 +250,28 @@ def update_engineer_timeline(engineer_name):
     week = list(np.array(week)[idx])
     project = list(np.array(project)[idx])
     hours = list(np.array(hours)[idx])
+
+    val_week = np.sort(list(set(week)))
+    text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
+
     newdf = pd.DataFrame(
     dict(project=project, week=week, hours=hours)
         )
     fig = px.bar(newdf, x='week', y='hours', color='project')
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week
+        )
+    )
     return fig
 
 @app.callback(
     Output('timeline_project','figure'),
     Input('proj_name_dropdown', 'value'))
 def update_project_timeline(project_name):
-    edf = raw_df[raw_df['Project']==project_name].groupby([raw_df['Date'].dt.strftime('%W'),'Employee']).sum()['Quantity']
+    edf = raw_df[raw_df['Project']==project_name].groupby([raw_df['Date'].dt.strftime('%Y%W'),'Employee']).sum()['Quantity']
     week = []
     employee = []
     hours = []
@@ -268,10 +283,21 @@ def update_project_timeline(project_name):
     week = list(np.array(week)[idx])
     employee = list(np.array(employee)[idx])
     hours = list(np.array(hours)[idx])
+
+    val_week = np.sort(list(set(week)))
+    text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
+
     newdf = pd.DataFrame(
     dict(employee=employee, week=week, hours=hours)
         )
     fig = px.bar(newdf, x='week', y='hours', color='employee')
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week
+        )
+    )
     return fig
 
 @app.callback(
@@ -538,6 +564,8 @@ def update_producitity_development(manager_name, select_data):
         edf = raw_df[raw_df['Manager']==manager_name].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
     elif manager_name == 'Total':
         edf = raw_df.groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
+    elif manager_name == 'Total-RSE':
+        edf = raw_df[ (raw_df['Manager'] == 'Yifat Dzigan') |  (raw_df['Manager'] == 'Nicolas Renaud') | (raw_df['Manager'] == 'Lars Ridder') | (raw_df['Manager'] == 'Valentina Azzara')].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
 
     week = []
     hour_type = []
@@ -581,6 +609,7 @@ def update_producitity_development(manager_name, select_data):
     hours = list(np.array(hours)[idx])
 
     val_week = np.sort(list(set(week)))
+    # text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
     text_week = [str(w)[:4] for w in val_week]
 
     newdf = pd.DataFrame(
@@ -606,6 +635,7 @@ def update_producitity_development(manager_name, select_data):
             proj_hours += list(p(all_weeks))
 
         val_week = np.sort(list(set(all_weeks)))
+        # text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
         text_week = [str(w)[:4] for w in val_week]
 
         newdf = pd.DataFrame(
@@ -632,6 +662,10 @@ def update_sunburst_section(manager_name):
         edf = raw_df[raw_df['Manager']==manager_name].groupby(['Project','Item group','Hour or cost type','Employee']).sum()['Quantity']
     elif manager_name == 'Total':
         edf = raw_df.groupby(['Project','Item group','Hour or cost type','Employee']).sum()['Quantity']
+    elif manager_name == 'Total-RSE':
+        edf = raw_df[ (raw_df['Manager'] == 'Yifat Dzigan') |  (raw_df['Manager'] == 'Nicolas Renaud') | (raw_df['Manager'] == 'Lars Ridder') | (raw_df['Manager'] == 'Valentina Azzara')].groupby(['Project','Item group','Hour or cost type','Employee']).sum()['Quantity']
+    else:
+        edf = raw_df.groupby(['Project','Item group','Hour or cost type','Employee']).sum()['Quantity']
 
     section = []
     project = []
@@ -654,16 +688,6 @@ def update_sunburst_section(manager_name):
     fig = px.sunburst(newdf, path=['section', 'item_group', 'hour_type', 'employee'], values='hours')
     fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
     return fig
-
-
-
-
-
-
-
-
-
-
 
 
 
