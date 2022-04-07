@@ -11,6 +11,3 @@ pip install plotly
 
 the the notebook should work (install other libraries if needed)
 The note book should produce graphs similar to the ones below
-
-![Engineer view](./eng.png)
-![Project view](./proj.png)
