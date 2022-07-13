@@ -17,7 +17,8 @@ from threading import Timer
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-fname = "./data/hoursJanFeb2022.xlsx"
+# fname = "./data/hoursJanFeb2022.xlsx"
+fname = "HoursJanJun2022.xlsx"
 raw_df = pd.read_excel(fname)
 
 eng_name_list = get_unique_names(raw_df, 'Employee')
@@ -128,15 +129,6 @@ app.layout = html.Div([
         ]),
     ])
 ])
-
-
-
-# @app.callback(
-#     Output('eng_name_dropdown','values'),
-#     Input('manager_filter_name_dropdown', 'value'))
-# def update_dropdown_engineer(manager_name):
-#     mdf = raw_df[raw_df['Manager']==manager_name]
-#     return get_unique_names(mdf,'Employee')
 
 
 @app.callback(Output('eng_name_dropdown', 'options'),
