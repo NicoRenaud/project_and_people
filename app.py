@@ -8,7 +8,7 @@ from dash import dcc, html, dash_table
 import plotly.express as px
 import plotly.graph_objects as go
 from process_data import get_unique_names
-
+from import_gantic import gantic2pandas, create_weekly_tasks, name2fullname
 import numpy as np
 import pandas as pd
 import webbrowser
@@ -18,7 +18,7 @@ from threading import Timer
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 # fname = "./data/hoursJanFeb2022.xlsx"
-fname = "HoursJanJun2022.xlsx"
+fname = "HoursJanOct2022.xlsx"
 raw_df = pd.read_excel(fname)
 
 eng_name_list = get_unique_names(raw_df, 'Employee')
@@ -26,6 +26,9 @@ proj_name_list = get_unique_names(raw_df, 'Project')
 manager_name_list = get_unique_names(raw_df, 'Manager') 
 
 
+gantic_filename = 'planning2022.csv'
+gantic_data = gantic2pandas(gantic_filename)
+gantic_weekly_tasks = create_weekly_tasks(gantic_data)
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
@@ -91,7 +94,12 @@ app.layout = html.Div([
         ]),
         dcc.Tab(label='Project', children=[
             dcc.Dropdown(proj_name_list, proj_name_list[0], id='proj_name_dropdown', style={'width': '50%'}),
-            html.Div([dcc.Graph(id='sunburst_project'), dcc.Graph(id='timeline_project'), dcc.Graph(id='cummulative_timeline_project')]),
+            html.Div([
+                dcc.Graph(id='sunburst_project', style={'display': 'inline-block'}), 
+                dcc.Graph(id='cummulative_timeline_project', style={'display': 'inline-block'}),
+                dcc.Graph(id='timeline_project'),
+                dcc.Graph(id='cummulative_timeline_project_planning')
+                ]),
         ]),
 
         dcc.Tab(label='Line Manager', children=[
@@ -102,7 +110,12 @@ app.layout = html.Div([
                     dcc.Dropdown(manager_name_list + ['Total', 'Total-RSE'], manager_name_list[0], 
                                  id='manager_name_dropdown', style={'width': '50%'}),
  
-                    dcc.Graph(id='sunburst_section', style={'width': '100%', 'display': 'inline-block'}),
+                    html.Div([
+                        dcc.Graph(id='sunburst_section', style={'display': 'inline-block'}),
+                        dcc.Graph(id='timeline_productivity', style={'display': 'inline-block'})
+                        
+                    ])
+                   
                 ],
             ),
             html.Div
@@ -123,7 +136,7 @@ app.layout = html.Div([
             html.Div
             (
                 [
-                    dcc.Graph(id='timeline_productivity')
+                    dcc.Graph(id='timeline_hours_percentage', style={'width': '100%'})
                 ]
             ),
         ]),
@@ -356,67 +369,47 @@ def update_cummulative_project_timeline(project_name):
     return fig
 
 
-# @app.callback(
-#     Output('sunburst_engineer_prod','figure'),
-#     Input('eng_name_dropdown', 'value'))
-# def update_sunburst_engineer_prod(engineer_name):
+
+@app.callback(
+    Output('cummulative_timeline_project_planning','figure'),
+    Input('proj_name_dropdown', 'value'))
+def update_cummulative_project_timeline_project(project_name):
 
 
-#     bill = []
-#     name = []
-#     hour_type = []
-#     hours = []
-#     total_billable = 0
-#     total_nonbillable = 0
-#     edf = raw_df[raw_df['Employee']==engineer_name].groupby(['Item group', 'Hour or cost type']).sum()['Quantity']
+    edf = gantic_weekly_tasks[gantic_weekly_tasks['Project']==project_name]
+    total_cumsum = edf.groupby(['Week']).sum().cumsum()['Quantity']
+    edf['Employee_cumsum'] = edf.groupby(['Employee'])['Quantity'].cumsum()
+    
+    week = []
+    employee = []
+    hours = []
 
+    for item in edf.values.tolist():
+        _employee, _week, _, _, _, _cumsum = item
+        week += [_week]
+        employee += [_employee]
+        hours += [_cumsum]
 
-#     try:
-#         core_proc = edf['0001 - Core Process']
-#         for k in core_proc.keys():
+    employee += ['Total']*len(total_cumsum)
+    week += total_cumsum.index.tolist()
+    hours += total_cumsum.values.tolist()
 
-#             name += [engineer_name]
-#             bill += ['billable']
-#             hour_type += [k]
-#             hours += [core_proc[k]]
-#             total_billable += core_proc[k]
-#     except:
-#         pass
+    val_week = np.sort(list(set(week)))
+    text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
+    
 
-#     try:
-#         core_proc = edf['0005 - Core Hours']
-#         for k in core_proc.keys():
-
-#             name += [engineer_name]
-#             bill += ['billable']
-#             hour_type += [k]
-#             hours += [core_proc[k]]
-#             total_billable += core_proc[k]
-#     except:
-#         pass
-
-#     try:
-#         core_proc = edf['0003 - Support Process']
-#         for k in core_proc.keys():
-#             # if k not in ['Holiday', 'Public Holidays']:
-#             name += [engineer_name]
-#             bill += ['non billable']
-#             hour_type += [k]
-#             hours += [core_proc[k]]
-#             total_nonbillable += core_proc[k]
-
-#     except:
-#         pass
-
-#     prod = total_nonbillable / (total_billable + total_nonbillable)
-#     name = [n + '\n' + str(prod)[:4] for n in name]
-#     newdf = pd.DataFrame(
-#     dict(name=name, bill=bill, hour_type=hour_type, hours=hours)
-#         )
-
-#     fig = px.sunburst(newdf, path=['name', 'bill', 'hour_type'], values='hours')
-#     fig.update_layout(margin = dict(t=20, l=0, r=0, b=0))
-#     return fig
+    newdf = pd.DataFrame(
+    dict(employee=employee, week=week, hours=hours)
+        )
+    fig = px.line(newdf, x='week', y='hours', color='employee', markers=True)
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week
+        )
+    )
+    return fig
 
 
 
@@ -545,6 +538,45 @@ def update_timeline_engineer_prod(engineer_name):
     fig.update_yaxes(range=[0, 102])
     return fig
 
+@app.callback(
+    Output('timeline_hours_percentage', 'figure'),
+    Input('manager_name_dropdown','value'))
+def update_timeline_hours_percentage(manager_name):
+    if manager_name in manager_name_list:
+        edf = raw_df[raw_df['Manager']==manager_name].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
+    elif manager_name == 'Total':
+        edf = raw_df.groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
+    elif manager_name == 'Total-RSE':
+        edf = raw_df[ (raw_df['Manager'] == 'Yifat Dzigan') |  (raw_df['Manager'] == 'Nicolas Renaud') | (raw_df['Manager'] == 'Michiel Punt') | (raw_df['Manager'] == 'Valentina Azzara')].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
+
+    week = []
+    project = []
+    hours = []
+    for (w,p), h in edf.items():
+        week += [int(w)]
+        project += [p]
+        hours += [h]
+    idx = np.argsort(week)
+    week = list(np.array(week)[idx])
+    project = list(np.array(project)[idx])
+    hours = list(np.array(hours)[idx])
+
+    val_week = np.sort(list(set(week)))
+    # text_week = [str(w)[4:]+'-'+str(w)[:4] for w in val_week]
+    text_week = [str(w)[:4] for w in val_week]
+
+    newdf = pd.DataFrame(
+    dict(project=project, week=week, hours=hours)
+        )
+    fig = px.bar(newdf, x='week', y='hours', color='project')
+    fig.update_layout(
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = val_week,
+        ticktext = text_week
+        )
+    )
+    return fig
 
 @app.callback(
     Output('timeline_productivity','figure'),
@@ -557,7 +589,7 @@ def update_producitity_development(manager_name, select_data):
     elif manager_name == 'Total':
         edf = raw_df.groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
     elif manager_name == 'Total-RSE':
-        edf = raw_df[ (raw_df['Manager'] == 'Yifat Dzigan') |  (raw_df['Manager'] == 'Nicolas Renaud') | (raw_df['Manager'] == 'Lars Ridder') | (raw_df['Manager'] == 'Valentina Azzara')].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
+        edf = raw_df[ (raw_df['Manager'] == 'Yifat Dzigan') |  (raw_df['Manager'] == 'Nicolas Renaud') | (raw_df['Manager'] == 'Michiel Punt') | (raw_df['Manager'] == 'Valentina Azzara')].groupby([raw_df['Date'].dt.strftime('%W'),'Item group']).sum()['Quantity']
 
     week = []
     hour_type = []
@@ -635,11 +667,16 @@ def update_producitity_development(manager_name, select_data):
             )
     fig = px.line(newdf, x='week', y='hours', color='hour_type', markers=True)
     fig.update_layout(
-    xaxis = dict(
-        tickmode = 'array',
-        tickvals = val_week,
-        ticktext = text_week
-        )
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+        ),
+        xaxis = dict(
+            tickmode = 'array',
+            tickvals = val_week,
+            ticktext = text_week
+            )
     )
     return fig
 

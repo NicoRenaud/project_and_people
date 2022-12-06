@@ -13,10 +13,8 @@ def get_unique_names(df, colname):
     return  names
 
 
-
 def extract_data(df):
 
-    # df = pd.read_excel(filename)
     employees = get_unique_names(df, 'Employee')
     projects = get_unique_names(df, 'Project')
 
@@ -25,7 +23,6 @@ def extract_data(df):
     nproject = len(projects)
 
     out = pd.DataFrame(np.zeros((nemployee, nproject)), index=employees, columns=projects)
-
 
     for e in employees:
         proj = list(df.loc[df['Employee']==e]['Project'])
