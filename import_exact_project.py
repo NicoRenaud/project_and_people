@@ -26,8 +26,6 @@ def get_project_sections_automatic(raw_df, names):
     return d
 
 
-
-
 def create_sunburst_project(raw_df, project_name, eng_name_list):
 
     sec = get_engineer_sections_automatic(raw_df, eng_name_list)

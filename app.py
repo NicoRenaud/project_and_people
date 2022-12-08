@@ -82,9 +82,6 @@ app.layout = html.Div([
 
     dcc.Tabs([
         dcc.Tab(label='Employee', children=[
-            # dcc.Dropdown(manager_name_list + ['All Managers'], 'All Managers', 
-            #             id='manager_filter_name_dropdown', style={'width': '50%'},
-            #             placeholder="Select a manager"),
             dcc.Dropdown(eng_name_list, eng_name_list[0], 
                          id='eng_name_dropdown', 
                          style={'width': '50%'},
@@ -111,42 +108,31 @@ app.layout = html.Div([
                 [
                     dcc.Dropdown(manager_name_list + ['Total', 'Total-RSE'], manager_name_list[0], 
                                  id='manager_name_dropdown', style={'width': '50%'}),
- 
                     html.Div([
                         dcc.Graph(id='sunburst_section', style={'display': 'inline-block'}),
                         dcc.Graph(id='timeline_productivity', style={'display': 'inline-block'})
-                        
                     ])
                    
                 ],
             ),
             html.Div
             (
-                [
-                    dcc.Checklist(['Projection'], [], id='select_data', inline=True)
-                ],
-                style={
-                    "display": "inline-block",
-                    "width": "100%",
-                    "margin-left": "0px",
-                    'display':'flex',
-                    'margin-right':'20px',
-                    'vertical-align':'bottom',
-                    "justify-content":'center'
-                }
+                [dcc.Checklist(['Projection'], [], id='select_data', inline=True)],
+                style={ "display": "inline-block", "width": "100%",
+                    "margin-left": "0px", 'display':'flex', 'margin-right':'20px', 'vertical-align':'bottom', "justify-content":'center'}
             ),
-            html.Div
-            (
-                [
-                    dcc.Graph(id='timeline_hours_percentage', style={'width': '100%'})
-                ]
-            ),
+            html.Div([dcc.Graph(id='timeline_hours_percentage', style={'width': '100%'})]),
         ]),
         dcc.Tab(label='Planning', children=[
             dcc.Dropdown(proj_name_list, proj_name_list[0], id='proj_name_dropdown_planning', style={'width': '50%'}),
-            html.Div([
-                dcc.Graph(id='cummulative_timeline_project_planning')
-                ]),
+            html.Div
+            (
+                [dcc.Checklist(['Cummulative'], [], id='cummulative_planning', inline=True)],
+                style={ "display": "inline-block", "width": "100%",
+                    "margin-left": "0px", 'display':'flex', 'margin-right':'20px', 'vertical-align':'bottom', "justify-content":'center'}
+            ),
+            html.Div([dcc.Graph(id='cummulative_timeline_project_planning')]),
+
         ]),
     ])
 ])
@@ -233,15 +219,15 @@ def update_producitity_development(manager_name, select_data):
     Output('sunburst_section','figure'),
     Input('manager_name_dropdown', 'value'))
 def update_sunburst_section(manager_name):
-    create_sunburst_section(raw_df, manager_name, manager_name_list)
-
+    return create_sunburst_section(raw_df, manager_name, manager_name_list)
 
 
 @app.callback(
     Output('cummulative_timeline_project_planning','figure'),
-    Input('proj_name_dropdown_planning', 'value'))
-def update_cummulative_project_timeline_project(project_name):
-    return create_cummulative_project_timeline_project(gantic_weekly_tasks, project_name)
+    Input('proj_name_dropdown_planning', 'value'),
+    Input('cummulative_planning', 'value'))
+def update_cummulative_project_timeline_project(project_name, cummulative_planning):
+    return create_cummulative_project_timeline_project(gantic_weekly_tasks, raw_df, project_name, cummulative_planning)
 
 
 
